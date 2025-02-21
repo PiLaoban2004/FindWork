@@ -1,5 +1,8 @@
 package LibraryManagementSystem;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,8 +13,6 @@ public class library {
     private List<Book> books = new ArrayList<>();
     private List<User> users = new ArrayList<>();
     private Scanner sc = new Scanner(System.in);
-    Book book;
-    User user;
 
     public library() {
         while (true) {
@@ -30,7 +31,7 @@ public class library {
                     borrowedManagement();
                     break;
                 case 4:
-                    dataStatistics();
+                    generateReport();
                     break;
                 default:
                     System.out.println("无效输入");
@@ -39,9 +40,6 @@ public class library {
 
         }
 
-    }
-
-    private void dataStatistics() {
     }
 
     //借阅管理
@@ -70,13 +68,13 @@ public class library {
         System.out.println("请输入所还书的id");
         String returnBookID = sc.nextLine();
 
-        boolean bookFound=false; //标记书籍是否找到
-        boolean recordFound=false; //标记借阅记录是否找到
+        boolean bookFound = false; //标记书籍是否找到
+        boolean recordFound = false; //标记借阅记录是否找到
 
         //查找数据
-        for (Book book:books){
-            if (returnBookID.equals(book.getBookId())){
-                bookFound=true;
+        for (Book book : books) {
+            if (returnBookID.equals(book.getBookId())) {
+                bookFound = true;
                 if (!book.isBorrowed()) {
                     System.out.println("这本书已经是未借出的状态");
                     return; //如果书籍已经是未借出的状态，直接返回
@@ -88,26 +86,26 @@ public class library {
                 System.out.println("归还成功！");
 
                 //查找用户借阅记录并删除归还记录
-                for (User user:users){
+                for (User user : users) {
                     //如果用户借阅了此书
-                    for (BorrowRecord record:user.getRecords()){
-                        if (record.getBorrowedBook().getBookId().equals(returnBookID)){
+                    for (BorrowRecord record : user.getRecords()) {
+                        if (record.getBorrowedBook().getBookId().equals(returnBookID)) {
                             //删除借阅记录
                             user.getRecords().remove(record);
                             System.out.println("用户借阅记录已更新，已移除此书籍");
-                            recordFound=true;
+                            recordFound = true;
                             break;
                         }
                     }
-                    if (recordFound)break;  //如果找到了并删除了记录，退出循环
+                    if (recordFound) break;  //如果找到了并删除了记录，退出循环
                 }
-                if (!recordFound){
+                if (!recordFound) {
                     System.out.println("未找到对应的借阅记录");
                 }
                 return; //结束还书操作
             }
         }
-        if (!bookFound){
+        if (!bookFound) {
             System.out.println("未找到该书，请确认输入id是否正确");
         }
     }
@@ -118,48 +116,76 @@ public class library {
             System.out.println("请先登录，请输入用户id和手机号码");
             String userId = sc.nextLine();
             String userTel = sc.nextLine();
+
+            boolean isLoggedIn = false; // 用来标记是否登录成功
+
+            // 登录验证
+            User loggedInUser=null;  //记录登陆成功的用户
             for (User user : users) {
                 if (userId.equals(user.getUserId()) && userTel.equals(user.getPhone())) {
-                    System.out.println("登陆成功");
-                } else {
-                    System.out.println("登录失败，请重新输入");
-                    return;
+                    System.out.println("登录成功");
+                    loggedInUser=user;
+                    isLoggedIn = true;
+                    break; // 登录成功，退出循环
                 }
-                    System.out.println("请输入你要借阅的书id");
-                    String borrowId = sc.nextLine();
-                    for (Book book : books) {
-                        if (borrowId.equals(book.getBookId())) {
-                            if (!book.isBorrowed()){
-                                //书籍未借出，更新借出状态
-                                book.setBorrowed(true);
-                                System.out.println("借阅成功！");
-
-                                //获取当前日期作为借书日期
-                                LocalDate borrowDate=LocalDate.now();
-                                //借阅日期为14天
-                                LocalDate dueDate=borrowDate.plusDays(14);
-
-                                //创建借阅记录并添加到用户记录
-                                BorrowRecord newRecord=new BorrowRecord(generateRecordId(),borrowDate,dueDate,book,user);
-                                user.getRecords().add(newRecord);
-                            }else {
-                                System.out.println("该书已经被借出！");
-                            }
-                            return;
-                        }
-                    }
-
             }
 
+            if (!isLoggedIn) {
+                System.out.println("登录失败，请重新输入");
+                continue; // 如果登录失败，继续循环，让用户重新输入
+            }
+
+            // 确保 loggedInUser 不为 null，再进行后续操作
+            if (loggedInUser == null) {
+                System.out.println("无法找到登录用户");
+                continue; // 继续提示用户重新输入
+            }
+
+            // 登录成功后，开始借书操作
+            System.out.println("请输入你要借阅的书id");
+            String borrowId = sc.nextLine();
+
+            boolean bookFound = false; // 用来标记书籍是否找到
+            for (Book book : books) {
+                if (borrowId.equals(book.getBookId())) {
+                    bookFound = true;
+                    if (!book.isBorrowed()) {
+                        // 书籍未借出，更新借出状态
+                        book.setBorrowed(true);
+                        System.out.println("借阅成功！");
+
+                        // 获取当前日期作为借书日期
+                        LocalDate borrowDate = LocalDate.now();
+                        // 借阅日期为14天
+                        LocalDate dueDate = borrowDate.plusDays(14);
+
+
+                        // 确保 loggedInUser 的借阅记录已初始化
+                        if (loggedInUser.getRecords() == null) {
+                            loggedInUser.setRecords(new ArrayList<>()); // 如果 records 为空，则初始化它
+                        }
+
+                        // 创建借阅记录并添加到用户记录
+                        BorrowRecord newRecord = new BorrowRecord(generateRecordId(), borrowDate, dueDate, book, loggedInUser);
+                        loggedInUser.getRecords().add(newRecord);
+                    } else {
+                        System.out.println("该书已经被借出！");
+                    }
+                    return;
+                }
+            }
+
+            if (!bookFound) {
+                System.out.println("未找到该书籍，请确认书籍id输入是否正确");
+            }
         }
-
-
     }
+
 
     //生成借阅记录的id，确保每次借阅都有唯一的记录id
 
     private String generateRecordId() {
-    return "RECORD"+System.currentTimeMillis(); //使用当前时间戳生成唯一id
+        return "RECORD" + System.currentTimeMillis(); //使用当前时间戳生成唯一id
     }
 
     //用户管理
@@ -309,6 +335,44 @@ public class library {
 
     //生成报表文件
     public void generateReport() {
-        System.out.println("生成报表文件");
+        String reportFilename = "LibraryReport.txt";
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(reportFilename))) {
+            //写入报表头部
+            writer.write("---- 图书管理系统报表 ----");
+            writer.write("书籍信息：\n");
+
+            //写入所有图书的信息
+            for (Book book : books) {
+                writer.write("书籍ID：" + book.getBookId() + ", ");
+                writer.write("书名：" + book.getTitle() + ", ");
+                writer.write("作者：" + book.getAuthor() + ", ");
+                writer.write("ISBN：" + book.getIsbn() + ", ");
+                writer.write("是否借出：" + (book.isBorrowed() ? "是" : "否") + "\n");
+            }
+            writer.write("\n\n用户借阅记录:\n");
+
+            //写入所有用户的借阅记录
+            for (User user : users) {
+                writer.write("用户ID:" + user.getUserId() + ", ");
+                writer.write("姓名:" + user.getName() + ", ");
+                writer.write("手机号码:" + user.getPhone() + "\n");
+
+                //如果用户有借阅记录
+                if (user.getRecords() != null && !user.getRecords().isEmpty()) {
+                    for (BorrowRecord record : user.getRecords()) {
+                        writer.write(" 借阅书籍ID：" + record.getBorrowedBook().getBookId() + ", ");
+                        writer.write("书名为：" + record.getBorrowedBook().getTitle() + ", ");
+                        writer.write("借阅日期:" + record.getBorrowDate() + ", ");
+                        writer.write("归还日期:" + record.getDueDate() + "\n");
+                    }
+                } else {
+                    writer.write("无借阅记录\n");
+                }
+                writer.write("\n");
+            }
+            System.out.println("报表已成功生成，“文件名：" + reportFilename);
+        } catch (IOException e) {
+            System.out.println("生成报表时发生错误:" + e.getMessage());
+        }
     }
 }

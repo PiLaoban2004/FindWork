@@ -58,14 +58,4 @@ public class Book {
     public void setBorrowed(boolean borrowed) {
         isBorrowed = borrowed;
     }
-
-    //获取图书信息
-    public void getBookInfo(){
-
-    }
-
-    //更新图书
-    public void updateStatus(){
-
-    }
 }
